@@ -12,5 +12,5 @@ pip install -r requirements.txt
     - `weights/weights_gcn.hdf5`: the pre-trained weights to deform the whole heart. 
     - `biventricle_struct/template_600pts.csv`: the biharmonic coordinates for the test template (i.e. a biventricle mesh in this example).
     - `biventricle_struct/thickness_mesh.vtp`: the polygon mesh of the test template.
-  - `predict_local.sh` example bash script to deform a test mesh template to match with the example image data using the pretrained weights
-* The results contains deformed test template meshes from each deformation block. The final mesh from the last deformation block is `block_2_*.vtp`
+  - `predict_local.sh` example bash script to deform a test mesh template to match with the example image data using the pretrained weights.
+* The results contain deformed test template meshes from each deformation block. The final mesh from the last deformation block is `block_2_*.vtp`.
