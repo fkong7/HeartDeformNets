@@ -111,12 +111,12 @@ class Prediction:
             pred_all = np.squeeze(pred_all)
             print("Mesh id: ", pred_all.shape)
             # Use the line below for un-scaled prediction
-            #pred_all /= np.array([128, 128, 128])
+            pred_all /= np.array([128, 128, 128])
             # Use the 4 lines below for projected prediction onto images
-            pred_all = pred_all * np.array(self.size)/np.array([128, 128, 128])
-            pred_all = np.concatenate((pred_all,np.ones((pred_all.shape[0],1))), axis=-1)  
-            pred_all = np.matmul(transform, pred_all.transpose()).transpose()[:,:3]
-            pred_all = pred_all + self.img_center - self.img_center2
+            #pred_all = pred_all * np.array(self.size)/np.array([128, 128, 128])
+            #pred_all = np.concatenate((pred_all,np.ones((pred_all.shape[0],1))), axis=-1)  
+            #pred_all = np.matmul(transform, pred_all.transpose()).transpose()[:,:3]
+            #pred_all = pred_all + self.img_center - self.img_center2
 
             if self.info['train']:
                 l = i-1 if i>0 else i
