@@ -87,7 +87,7 @@ def ctrl_pts_loss_l2(weight):
         return pt_loss * weight
     return ctrl_pts_loss_l2_k
 
-def ctrl_pts_loss_0(weight):
+def ctrl_pts_loss_0():
     def ctrl_pts_loss_0_k(y_true, y_pred):
         return tf.zeros((1,))
     return ctrl_pts_loss_0_k 
