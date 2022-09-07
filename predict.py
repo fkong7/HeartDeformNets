@@ -32,29 +32,7 @@ import pickle
 import time
 import scipy.sparse as sp
 from scipy.spatial.distance import directed_hausdorff
-def parse():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--image',  help='Name of the folder containing the image data')
-    parser.add_argument('--mesh_dat',  help='Name of the .dat file containing mesh info')
-    parser.add_argument('--swap_dat', default=None,help='Name of the csv file containing the updated bc weights')
-    parser.add_argument('--model',  help='Name of the folder containing the trained model')
-    parser.add_argument('--mesh_tmplt', help='Name of the finest mesh template')
-    parser.add_argument('--attr',  help='Name of the image folder postfix')
-    parser.add_argument('--output',  help='Name of the output folder')
-    parser.add_argument('--modality', nargs='+', help='Name of the modality, mr, ct, split by space')
-    parser.add_argument('--amplify_factor', type=float, default=0.1, help="amplify_factor of the predicted displacements")
-    parser.add_argument('--size', type = int, nargs='+', default=[128, 128, 128], help='Image dimensions')
-    parser.add_argument('--mode', default='test', help='Test or validation (without or with ground truth label')
-    parser.add_argument('--num_mesh', type=int, default=7, help='Number of meshes to train')
-    parser.add_argument('--num_block', type=int,default=3, help='Number of graph conv block')
-    parser.add_argument('--num_seg', type=int, default=1, help='Number of segmentation classes')
-    parser.add_argument('--motion', action='store_true', help='If make prediction for all models.')
-    parser.add_argument('--seg_id', default=[], type=int, nargs='+', help='List of segmentation ids to apply marching cube')
-    parser.add_argument('--hidden_dim', type = int, default=128, help='Hidden dimension')
-    parser.add_argument('--train', action='store_true', help='If training mode output control points coords, otherwise deformed mesh.') 
-    args = parser.parse_args()
-    return args
-
+import yaml
 
 class Prediction:
     #This class use the GCN model to predict mesh from 3D images
@@ -116,14 +94,11 @@ class Prediction:
                 pred = prediction_mesh[i*num+k]
                 if self.info['train']:
                     pred = pred[:, (self.info['feed_dict']['struct_node_ids'][k+1]-self.info['feed_dict']['struct_node_ids'][k]):, :]
-                print("DEBUG SHAPE: ", pred.shape)
                 pred_all = np.concatenate((pred_all, pred), axis=1)
-                print("DEBUG CONCAT SHAPE: ", pred_all.shape)
                 r_id = np.append(r_id, np.ones(pred.shape[1])*k)
             r_id_vtk = numpy_to_vtk(r_id)
             r_id_vtk.SetName('Ids')
             pred_all = np.squeeze(pred_all)
-            print("Mesh id: ", pred_all.shape)
             # Use the line below for un-scaled prediction
             pred_all /= np.array([128, 128, 128])
             # Use the 4 lines below for projected prediction onto images
@@ -212,18 +187,14 @@ class Prediction:
         return dist, haus
 
     def write_prediction(self, seg_id, index=0, motion=False,  write_image=True):
-        #fn = '.'.join(self.out_fn.split(os.extsep, -1)[:-1])
         dir_name = os.path.dirname(self.out_fn)
         base_name = os.path.basename(self.out_fn)
         for i, pred in enumerate(self.prediction):
             fn_i =os.path.join(dir_name, 'block_{}_{}_{}.vtp'.format(i, base_name, index) if motion else 'block_{}_{}.vtp'.format(i, base_name))
             write_vtk_polydata(pred, fn_i)
-            #write_polydata_points(pred, fn_i)
         for i, pred in enumerate(self.prediction_grid):
             fn_i =os.path.join(dir_name, 'block_{}_{}_grid_{}.vtp'.format(i, base_name, index) if motion else 'block_{}_{}_grid.vtp'.format(i, base_name) )
             write_numpy_points(pred, fn_i)
-            #fn_i =os.path.join(dir_name, 'V_field_{}.vti'.format(base_name))
-            #write_vtk_image(pred, fn_i)
         if write_image:
             _, ext = self.image_fn.split(os.extsep, 1)
             if ext == 'vti':
@@ -231,100 +202,92 @@ class Prediction:
             else:
                 im = sitk.ReadImage(self.image_fn)
                 ref_im, M = exportSitk2VTK(im)
-            #ref_im_copy = vtk.vtkImageData()
-            #ref_im_copy.DeepCopy(ref_im)
             self.seg_result=multiclass_convert_polydata_to_imagedata(self.prediction[-1], ref_im)
             if ext == 'vti':
                 write_vtk_image(ref_im, os.path.join(dir_name, base_name+'.vti'))
             else:
                 vtk_write_mask_as_nifty(self.seg_result, M, self.image_fn, os.path.join(dir_name, base_name+'.nii.gz'))
-                #vtk_write_mask_as_nifty2(ref_im, self.image_fn, os.path.join(dir_name, base_name+'.nii.gz'))
 
 if __name__ == '__main__':
-    args = parse()
-    try:
-        os.makedirs(args.output)
-    except Exception as e: print(e)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config')
+    args = parser.parse_args()
+    with open(args.config, 'r') as stream:
+        params = yaml.safe_load(stream)
+    
+    if not os.path.exists(params['prediction']['output_folder']):
+        os.makedirs(params['prediction']['output_folder'])
     import time
     start = time.time()
     #load image filenames
     BATCH_SIZE = 1
-    pkl = pickle.load(open(args.mesh_dat, 'rb'))
-    mesh_tmplt = load_vtk_mesh(args.mesh_tmplt)
-    if args.swap_dat is not None:
-        swap_weight = [np.genfromtxt(args.swap_dat,delimiter=',')]
+    pkl = pickle.load(open(params['prediction']['mesh']['mesh_dat_filemame'], 'rb'))
+    mesh_tmplt = load_vtk_mesh(params['prediction']['mesh']['mesh_tmplt_filename'])
+    if params['prediction']['mesh']['swap_bc_coordinates'] is not None:
+        swap_weight = [np.genfromtxt(params['prediction']['mesh']['swap_bc_coordinates'],delimiter=',')]
         pkl['bbw'] = swap_weight * len(pkl['bbw'])
         pkl['tmplt_coords'] = vtk_to_numpy(mesh_tmplt.GetPoints().GetData())
         pkl['id_ctrl_on_sample_all'] = [pkl['id_ctrl_on_sample_all'][-1]]*len(pkl['id_ctrl_on_sample_all'])
-        print("DEBUG: ", pkl['struct_node_ids'])
-        pkl['struct_node_ids'] = [0] + [pkl['tmplt_coords'].shape[0]]*args.num_mesh
-        print("DEBUG1: ", pkl['struct_node_ids'])
+        pkl['struct_node_ids'] = [0] + [pkl['tmplt_coords'].shape[0]]*params['prediction']['mesh']['num_mesh']
 
-    mesh_info = construct_feed_dict(pkl,args.num_block, has_cap=False)
+    mesh_info = construct_feed_dict(pkl,params['network']['num_blocks'], params['network']['coord_emb_dim'], has_cap=False)
     info = {'batch_size': BATCH_SIZE,
-            'input_size': (args.size[0], args.size[1], args.size[2], 1),
-            'hidden_dim': args.hidden_dim,
+            'input_size': (*params['network']['input_size'], 1),
+            'hidden_dim': params['network']['hidden_dim'],
             'feed_dict': mesh_info,
-            'num_mesh': args.num_mesh,
-            'num_seg': args.num_seg,
-            'num_block': args.num_block, 
-            'amplify_factor': args.amplify_factor, 
-            'train': args.train
+            'num_mesh': params['prediction']['mesh']['num_mesh'],
+            'num_seg': params['network']['num_seg_class'],
+            'num_block': params['network']['num_blocks'], 
+            'amplify_factor': params['network']['rescale_factor'], 
+            'train': False
             }
     filenames = {}
     extensions = ['nii', 'nii.gz', 'vti']
-    #model_fns = natural_sort(glob.glob(os.path.join(args.model, '*.index')))
-    model_fns = natural_sort(glob.glob(os.path.join(args.model, '*.hdf5')))
-    print(model_fns, args.model)
-    if not args.motion:
-        model_fns = [model_fns[-1]]
-    for index, model_name in enumerate(model_fns):
-        #model_name = model_name[:-6]
-        predict = Prediction(info, model_name, mesh_tmplt)
-        for m in args.modality:
-            x_filenames, y_filenames = [], []
-            for ext in extensions:
-                im_loader = DataLoader(m, args.image, fn=args.attr, fn_mask=None if args.mode=='test' else args.attr+'_masks', ext='*.'+ext, ext_out='*.'+ext)
-                x_fns_temp, y_fns_temp = im_loader.load_datafiles()
-                x_filenames += x_fns_temp
-                y_filenames += y_fns_temp
-            x_filenames = natural_sort(x_filenames)
-            try:
-                y_filenames = natural_sort(y_filenames)
-            except: pass
-            score_list = []
-            assd_list = []
-            haus_list = []
-            time_list = []
-            time_list2 = []
-            for i in range(len(x_filenames)):
-                #set up models
-                print("processing "+x_filenames[i])
-                out_fn = os.path.basename(x_filenames[i]).split('.')[0]
-                start2 = time.time()
-                predict.set_image_info(m, x_filenames[i], args.size, os.path.join(args.output, out_fn), y_filenames[i], write=False)
-                #predict.get_weights()
-                predict.mesh_prediction()
-                predict.write_prediction(args.seg_id, index, args.motion, write_image=True)
-                time_list.append(predict.pred_time)
-                end2 = time.time()
-                time_list2.append(end2-start2)
-                if y_filenames[i] is not None:
-                    #score_list.append(predict.evaluate(args.seg_id,out_fn ))
-                    score_list.append(predict.evaluate_dice())
-                    #assd, haus = predict.evaluate_assd()
-                    #assd_list.append(assd)
-                    #haus_list.append(haus)
-                    #metric_names = predict.get_metric_names
-            if len(score_list) >0:
-                csv_path = os.path.join(args.output, '%s_test.csv' % m)
-                csv_path_assd = os.path.join(args.output, '%s_test_assd.csv' % m)
-                csv_path_haus = os.path.join(args.output, '%s_test_haus.csv' % m)
-                write_scores(csv_path, score_list)
-                write_scores(csv_path_assd, assd_list)
-                write_scores(csv_path_haus, haus_list)
+    predict = Prediction(info, params['model_weights_filename'], mesh_tmplt)
+    for m in params['prediction']['image']['modality']:
+        x_filenames, y_filenames = [], []
+        for ext in extensions:
+            im_loader = DataLoader(m, params['prediction']['image']['image_folder'], \
+                    fn=params['prediction']['image']['image_folder_attr'], \
+                    fn_mask=None if params['prediction']['mode']=='test' else params['prediction']['image']['image_folder_attr']+'_masks', ext='*.'+ext, ext_out='*.'+ext)
+            x_fns_temp, y_fns_temp = im_loader.load_datafiles()
+            x_filenames += x_fns_temp
+            y_filenames += y_fns_temp
+        x_filenames = natural_sort(x_filenames)
+        try:
+            y_filenames = natural_sort(y_filenames)
+        except: pass
+        score_list = []
+        assd_list = []
+        haus_list = []
+        time_list = []
+        time_list2 = []
+        for i in range(len(x_filenames)):
+            #set up models
+            print("processing "+x_filenames[i])
+            out_fn = os.path.basename(x_filenames[i]).split('.')[0]
+            start2 = time.time()
+            predict.set_image_info(m, x_filenames[i], params['network']['input_size'], os.path.join(params['prediction']['output_folder'], out_fn), y_filenames[i], write=False)
+            predict.mesh_prediction()
+            predict.write_prediction(list(range(1, params['prediction']['mesh']['num_mesh']+1)), 0, False, write_image=True)
+            time_list.append(predict.pred_time)
+            end2 = time.time()
+            time_list2.append(end2-start2)
+            if y_filenames[i] is not None:
+                score_list.append(predict.evaluate_dice())
+                #assd, haus = predict.evaluate_assd()
+                #assd_list.append(assd)
+                #haus_list.append(haus)
+                #metric_names = predict.get_metric_names
+        if len(score_list) >0:
+            csv_path = os.path.join(params['prediction']['output_folder'], '%s_test.csv' % m)
+            csv_path_assd = os.path.join(params['prediction']['output_folder'], '%s_test_assd.csv' % m)
+            csv_path_haus = os.path.join(params['prediction']['output_folder'], '%s_test_haus.csv' % m)
+            write_scores(csv_path, score_list)
+            write_scores(csv_path_assd, assd_list)
+            write_scores(csv_path_haus, haus_list)
 
-        end = time.time()
-        print("Total time spent: ", end-start)
-        print("Avg pred time ", np.mean(time_list)) 
-        print("Avg generation time", np.mean(time_list2))
+    end = time.time()
+    print("Total time spent: ", end-start)
+    print("Avg pred time ", np.mean(time_list)) 
+    print("Avg generation time", np.mean(time_list2))

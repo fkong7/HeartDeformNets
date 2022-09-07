@@ -139,8 +139,6 @@ def find_cap(node_id, mesh, tag_id=1, max_cap_num=1000000, tol = 0.5, side_ring_
     vtk_arr_s = numpy_to_vtk(side_data)
     vtk_arr_s.SetName('Side_ID')
     mesh.GetCellData().AddArray(vtk_arr_s)
-    if node_id > -1:
-        write_vtk_polydata(mesh, '/Users/fanweikong/Documents/Modeling/HeartDeepFFD/template/test_wh_full_3260/debug.vtp')
     return mesh, ctr_cells, side_cells, face_data
 
    
@@ -212,15 +210,9 @@ def make_dat_bc(mesh_fn, sample_fn, weight_fns, ctrl_fns, write=True, output_pat
     cap_list = [[-1], [964,1801,1893,3103], [-1], [59, 3220], [-1], [3008], [-1]]
     cap_list = [[-1],[-1],[-1],[-1],[-1],[-1],[-1]]
     tmplt_mesh_info, template = get_face_node_list(template, cap_list=cap_list, output_mesh=True)
-    print("NODE_LIST: ", tmplt_mesh_info['node_list'])
-    print("CTR_ID_LIST: ", tmplt_mesh_info['face_ctr_list'])
-    print("SIDE_ID_LIST: ", tmplt_mesh_info['face_side_list'])
-    for i in range(len(tmplt_mesh_info['cap_id_list'])):
-        print("CAP DATA: ", tmplt_mesh_info['cap_id_list'][i].shape)
-        print("FACE DATA: ", tmplt_mesh_info['face_list'][i].shape)
     sample_mesh_info = get_face_node_list(sample_mesh)
     coords = vtk_to_numpy(template.GetPoints().GetData())
-    weights = [np.genfromtxt(weight_fn,delimiter=',') for weight_fn in weight_fns]
+    weights = [np.genfromtxt(weight_fn,delimiter=',').astype(np.float32) for weight_fn in weight_fns]
 
     sample_pts = vtk_to_numpy(sample_mesh.GetPoints().GetData())
 
@@ -247,10 +239,9 @@ def make_dat_bc(mesh_fn, sample_fn, weight_fns, ctrl_fns, write=True, output_pat
         id_mesh_on_sample.append(find_point_correspondence(tmplt_i, sample_i_pts))
     #print(id_mesh_on_sample)
     #-----------------------------------------------------------------------
-    info = {'sample_coords': sample_pts, 'sample_faces': sample_mesh_info['face_list'], 'sample_node_list': sample_mesh_info['node_list'], 'sample_lap_list': sample_mesh_info['lap_list'], \
-            'lap_list': tmplt_mesh_info['lap_list'], \
-            'struct_node_ids': tmplt_mesh_info['node_list'], 'tmplt_faces': tmplt_mesh_info['face_list'], 'bbw': weights, 'tmplt_coords': coords, \
-            'id_ctrl_on_sample_all': id_ctrl_on_sample_all, 'id_mesh_on_sample': id_mesh_on_sample, \
+    info = {'sample_coords': sample_pts.astype(np.float32), 'sample_faces': sample_mesh_info['face_list'], 'sample_node_list': sample_mesh_info['node_list'], \
+            'bbw': weights , 'tmplt_coords': coords.astype(np.float32), \
+            'id_ctrl_on_sample_all': id_ctrl_on_sample_all, \
             'cap_data':tmplt_mesh_info['cap_id_list'], 'cap_ctr_data': tmplt_mesh_info['face_ctr_list'], 'cap_side_data': tmplt_mesh_info['face_side_list']}
 
     # build graph for contrl pts
@@ -273,10 +264,8 @@ def make_dat_bc(mesh_fn, sample_fn, weight_fns, ctrl_fns, write=True, output_pat
 
 def parse():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--volume_fn', default="", help='Name of the volumetric mesh.')
     parser.add_argument('--tmplt_fn', help='Name of the template mesh.')
     parser.add_argument('--sample_fn', help='Name of the sampling mesh.')
-    parser.add_argument('--ctrl_fn', default="", help='Name of the control points')
     parser.add_argument('--ctrl_fns', nargs='+', default=[], help='Name of the control points')
     parser.add_argument('--weight_fns', nargs='+', default=[], help='Name of the control points')
     parser.add_argument('--out_dir', help='Path to the output folder')

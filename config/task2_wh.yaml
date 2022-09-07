@@ -1,0 +1,25 @@
+model_weights_filename: pretrained/task2_wh.hdf5
+network:
+  num_blocks: 3
+  num_seg_class: 1
+  rescale_factor: 0.1
+  input_size:
+    - 128
+    - 128
+    - 128
+  hidden_dim: 128
+  coord_emb_dim: 192
+prediction:
+  image:
+    image_folder: examples/images
+    image_folder_attr: _test
+    modality:
+      - ct
+  mesh:
+    mesh_dat_filemame: examples/task2_wh/mesh_info.dat
+    mesh_tmplt_filename: templates/meshes/wh_template.vtp
+    swap_bc_coordinates: null
+    num_mesh: 7
+  output_folder: output/task2
+  mode: test
+  

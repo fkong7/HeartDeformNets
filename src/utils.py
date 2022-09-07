@@ -31,7 +31,6 @@ def positional_encoding(max_position, d_model, min_freq=1e-4):
     return pos_enc
 
 def fourier_feature_mapping(num_features, coords, scale=1., seed=42):
-    print("Fourier feature mapping: ", coords.shape)
     np.random.seed(seed)
     B_mat = scale * np.random.normal(size=(coords.shape[-1], num_features))
     rff_input = np.concatenate([np.sin((2*np.pi*coords) @ B_mat), np.cos((2*np.pi*coords) @ B_mat)], axis=-1)
@@ -82,35 +81,20 @@ def buildImageDataset(data_folder_out, modality, seed, mode='_train', ext='*.tfr
     print("Number of images obtained for training and validation: " + str(nums))
     return x_train_filenames
 
-def construct_feed_dict(pkl, num_block, has_cap=True):
+def construct_feed_dict(pkl, num_block,coord_emb_dim, has_cap=True):
     """Construct feed dictionary."""
     feed_dict = dict()
     feed_dict['image_data'] = None
     feed_dict['mesh_coords'] = tf.convert_to_tensor(pkl['tmplt_coords'], dtype=tf.float32)
     feed_dict['sample_coords'] = tf.convert_to_tensor(pkl['sample_coords'], dtype=tf.float32)
-    feed_dict['pe'] = tf.convert_to_tensor(fourier_feature_mapping(384, pkl['sample_coords'], scale=1., seed=42), dtype=tf.float32)
-    #feed_dict['pe'] = tf.convert_to_tensor(fourier_feature_mapping(192, pkl['sample_coords'], scale=1., seed=42), dtype=tf.float32)
+    feed_dict['pe'] = tf.convert_to_tensor(fourier_feature_mapping(coord_emb_dim, pkl['sample_coords'], scale=1., seed=42), dtype=tf.float32)
     feed_dict['adjs'] = [tf.SparseTensor(indices=j[0], values=j[1].astype(np.float32), dense_shape=j[-1]) for j in pkl['support']]
-    feed_dict['struct_node_ids'] = pkl['struct_node_ids']
+    feed_dict['struct_node_ids'] = pkl['sample_node_list']
     feed_dict['sample_node_ids'] = pkl['sample_node_list']
-    feed_dict['sample_lap_list'] = [tf.convert_to_tensor(i, dtype=tf.int32) for i in pkl['sample_lap_list']]
-    feed_dict['lap_list'] = [tf.convert_to_tensor(i, dtype=tf.int32) for i in pkl['lap_list']]
 
     ## Find the unique face ids and sort based on node id
-    #for i, (faces, sample_faces) in enumerate(zip(pkl['tmplt_faces'], pkl['sample_faces'])):
-    #    _, index = np.unique(faces[:,0], return_index=True)
-    #    pkl['tmplt_faces'][i] = faces[index, :]
-    #    _, index = np.unique(faces[:,0], return_index=True)
-    #    pkl['sample_faces'][i] = sample_faces[index, :]
-    #feed_dict['id_ctrl_on_sample'] = pkl['id_ctrl_on_sample']
-    feed_dict['lap_ids'] = tf.convert_to_tensor(pkl['lap_ids'], dtype=tf.int32)
-    feed_dict['tmplt_faces'] = [tf.convert_to_tensor(faces, dtype=tf.int32) for faces in pkl['tmplt_faces']]
-    for i in range(len(feed_dict['tmplt_faces'])):
-        #print(pkl['tmplt_faces'][i])
-        #print("UTILS DEBUG: ", feed_dict['tmplt_faces'][i].get_shape().as_list(), pkl['tmplt_faces'][i].shape())
-        print("UTILS DEBUG: ", feed_dict['tmplt_faces'][i].get_shape().as_list())
+    feed_dict['tmplt_faces'] = [tf.convert_to_tensor(faces, dtype=tf.int32) for faces in pkl['sample_faces']]
     feed_dict['sample_faces'] = [tf.convert_to_tensor(sample_faces, dtype=tf.int32) for sample_faces in pkl['sample_faces']]
-    feed_dict['id_mesh_on_sample'] = [tf.convert_to_tensor(i, dtype=tf.int32) for i in pkl['id_mesh_on_sample']]
     feed_dict['id_ctrl_on_sample'] = [tf.convert_to_tensor(i, dtype=tf.int32) for i in pkl['id_ctrl_on_sample_all']]
     feed_dict['bbw'] = [tf.convert_to_tensor(i, dtype=tf.float32) for i in pkl['bbw']]
     if len(feed_dict['bbw']) == 1:
@@ -124,8 +108,6 @@ def construct_feed_dict(pkl, num_block, has_cap=True):
                 if q > 0:
                     sub_list.append(tf.convert_to_tensor(np.where(np.array(c_id)==q)[0], dtype=tf.int32))
             feed_dict['cap_data'].append(sub_list)
-        print("feed_dict['cap_data']: ", feed_dict['cap_data'])
-        #pkl['cap_ctr_data'] = [[[-1]], [[1802]], [[-1]], [[89]], [[-1]], [[5954]], [[-1]]]
         feed_dict['ctr_data'] = [[tf.convert_to_tensor(ctr_id, dtype=tf.int32) for ctr_id in ctr_id_list if len(ctr_id)>0] for ctr_id_list in pkl['cap_ctr_data']]
         feed_dict['side_data'] = [[tf.convert_to_tensor(side_id, dtype=tf.int32) for side_id in side_id_list if len(side_id)>0] for side_id_list in pkl['cap_side_data']]
     else:
