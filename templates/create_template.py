@@ -95,7 +95,7 @@ def convert_to_binary(seg, erode=True):
     return seg_b, seg_m
 
 def create_tmplt(seg, target_num):
-    template = convert_to_surfs(seg, new_spacing=[1., 1., 1.], target_node_num=target_num)
+    template = convert_to_surfs(seg, new_spacing=[0.3, 0.3, 0.3], target_node_num=target_num)
     template = smooth_polydata(template, 25)
     return create_tmplt_mesh(template, seg)
 
@@ -113,14 +113,12 @@ if __name__ == '__main__':
     args = parse()
     if args.seg_fn != '':
         seg = sitk.ReadImage(args.seg_fn)
-        resample_segmentation(sitk.ReadImage(args.ref_im), seg)
-        sys.exit()
         if args.binary:
             seg_b, seg_m = convert_to_binary(seg, not args.if_turn_off_erode)
             if args.ref_im is not None:
                 seg_b = resample_segmentation(sitk.ReadImage(args.ref_im), seg_b)
                 seg_m = resample_segmentation(sitk.ReadImage(args.ref_im), seg_m)
-            tmplt_manifold, _ = create_tmplt(seg_b, args.target_node_num*14)
+            tmplt_manifold, _ = create_tmplt(seg_b, args.target_node_num*8)
             write_vtk_polydata(tmplt_manifold, args.output[:-4]+'_manifold.vtp')
             write_vtk_polydata(tmplt_manifold, args.output[:-4]+'_manifold.obj')
             tmplt, _ = create_tmplt(seg_m, args.target_node_num)

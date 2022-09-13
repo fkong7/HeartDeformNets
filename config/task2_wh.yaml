@@ -22,4 +22,3 @@ prediction:
     num_mesh: 7
   output_folder: output/task2
   mode: test
-  
