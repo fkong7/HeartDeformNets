@@ -20,7 +20,7 @@ from tensorflow.keras import backend as K
 import numpy as np
 
 from tensorflow.python.framework import ops
-nn_distance_module=tf.load_op_library('../external/tf_nndistance_so.so')
+nn_distance_module=tf.load_op_library(os.path.join(os.path.dirname(__file__), '../external/tf_nndistance_so.so'))
 
 def nn_distance(xyz1,xyz2):
     '''
@@ -79,7 +79,7 @@ def ctrl_pts_loss_l2(weight):
         return pt_loss * weight
     return ctrl_pts_loss_l2_k
 
-def ctrl_pts_loss_0(weight):
+def ctrl_pts_loss_0():
     def ctrl_pts_loss_0_k(y_true, y_pred):
         return tf.zeros((1,))
     return ctrl_pts_loss_0_k
@@ -127,7 +127,6 @@ def mesh_loss_single(pred, gt, tmplt_faces, lap_ids, ctr_list, side_list, cap_id
     e3 = v3 - v2
     cross = unit(tf.linalg.cross(e1, e2))
     ctr = (v1 + v2 + v3)/3.
-    cap_loss = calc_cap_normal_loss(cross, ctr_list, side_list, cap_id_data, mesh_id)
     e1_l = tf.reduce_sum(tf.square(e1), axis=-1)
     e2_l = tf.reduce_sum(tf.square(e2), axis=-1)
     e3_l = tf.reduce_sum(tf.square(e3), axis=-1)
@@ -163,7 +162,9 @@ def mesh_loss_single(pred, gt, tmplt_faces, lap_ids, ctr_list, side_list, cap_id
         normal_loss = tf.reduce_mean(normal_dist)
 
     # if adding regularization losses on the cap
+    cap_loss = 0.
     if if_cap:
+        cap_loss = calc_cap_normal_loss(cross, ctr_list, side_list, cap_id_data, mesh_id)
         for i in range(len(side_list)):
             ctr_i = tf.gather(ctr, side_list[i] , axis=1)
             pt_err_i = tf.gather(dist_pred2gt, side_list[i], axis=1)
@@ -209,8 +210,8 @@ def mesh_loss(pred, gt, feed_dict, mesh_id, weights, cf_ratio=1., if_mask=False,
     side_list = feed_dict['side_data'][mesh_id]
     cap_id_data = feed_dict['cap_data'][mesh_id]
     
-    point_loss_p, normal_loss_p, edge_loss_p, lap_loss_p, cap_loss_p = mesh_loss_single(mesh, gt, feed_dict['tmplt_faces'][mesh_id], feed_dict['lap_list'][mesh_id], ctr_list, side_list, cap_id_data, cf_ratio, if_mask, mesh_id=mesh_id, if_cap=if_cap)
-    point_loss_s, normal_loss_s, edge_loss_s, lap_loss_s, cap_loss_s = mesh_loss_single(sample, gt, feed_dict['sample_faces'][mesh_id], feed_dict['sample_lap_list'][mesh_id], ctr_list, side_list, cap_id_data, cf_ratio, if_mask, mesh_id=mesh_id, if_cap=if_cap)
+    point_loss_p, normal_loss_p, edge_loss_p, lap_loss_p, cap_loss_p = mesh_loss_single(mesh, gt, feed_dict['tmplt_faces'][mesh_id], None, ctr_list, side_list, cap_id_data, cf_ratio, if_mask, mesh_id=mesh_id, if_cap=if_cap)
+    point_loss_s, normal_loss_s, edge_loss_s, lap_loss_s, cap_loss_s = mesh_loss_single(sample, gt, feed_dict['sample_faces'][mesh_id], None, ctr_list, side_list, cap_id_data, cf_ratio, if_mask, mesh_id=mesh_id, if_cap=if_cap)
     
     sample_mesh_dist = tf.reduce_mean(tf.square(mesh - sample))
     
