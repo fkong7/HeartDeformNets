@@ -113,8 +113,6 @@ if __name__ == '__main__':
     args = parse()
     if args.seg_fn != '':
         seg = sitk.ReadImage(args.seg_fn)
-        resample_segmentation(sitk.ReadImage(args.ref_im), seg)
-        sys.exit()
         if args.binary:
             seg_b, seg_m = convert_to_binary(seg, not args.if_turn_off_erode)
             if args.ref_im is not None:
