@@ -8,6 +8,10 @@ Fanwei Kong, Shawn Shadden, Learning Whole Heart Mesh Generation From Patient Im
 
 
 ## Installation
+To download our source code with submodules, please run 
+```
+git clone --recurse-submodules https://github.com/fkong7/HeartDeformNets.git
+```
 The dependencies of our implementation can be installed by running the following command.
 ```
 pip install -r requirements.txt
