@@ -204,7 +204,7 @@ class Prediction:
                 ref_im, M = exportSitk2VTK(im)
             self.seg_result=multiclass_convert_polydata_to_imagedata(self.prediction[-1], ref_im)
             if ext == 'vti':
-                write_vtk_image(ref_im, os.path.join(dir_name, base_name+'.vti'))
+                write_vtk_image(self.seg_result, os.path.join(dir_name, base_name+'.vti'))
             else:
                 vtk_write_mask_as_nifty(self.seg_result, M, self.image_fn, os.path.join(dir_name, base_name+'.nii.gz'))
 

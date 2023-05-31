@@ -16,8 +16,8 @@ prediction:
     modality:
       - ct
   mesh:
-    mesh_dat_filemame: examples/task2/09_13_2022_15_58_49_bbw.dat
-    mesh_tmplt_filename: examples/task2/09_13_2022_15_58_49_template.vtp
+    mesh_dat_filemame: templates/train_dat/wh_noerode/05_31_2023_10_53_24_bbw.dat
+    mesh_tmplt_filename: templates/train_dat/wh_noerode/05_31_2023_10_53_24_template.vtp
     swap_bc_coordinates: null
     num_mesh: 7
   output_folder: output/task2
@@ -28,7 +28,7 @@ train:
     num_epoch: 300
     pre_train: pretrained/task2_wh.hdf5
     pre_train_unet: null
-    mesh_dat_filemame: examples/task2/09_13_2022_15_58_49_bbw.dat
+    mesh_dat_filemame: examples/task2/05_31_2023_10_53_24_bbw.dat
     data:
         train_img_folder:
             - /path/to/to/original/image/dir
