@@ -8,6 +8,10 @@ Fanwei Kong, Shawn Shadden, Learning Whole Heart Mesh Generation From Patient Im
 
 
 ## Installation
+To download our source code with submodules, please run 
+```
+git clone --recurse-submodules https://github.com/fkong7/HeartDeformNets.git
+```
 The dependencies of our implementation can be installed by running the following command.
 ```
 pip install -r requirements.txt
@@ -37,25 +41,12 @@ We provide the pretrained network in `pretrained`.
 - `pretrained/task1_mmwhs.hdf5` is the pretrained network used in Task1, whole heart segmentation of the MMWHS dataset. 
 - `pretrained/task2_wh.hdf5` is the pretrained network used in Task2, whole heart mesh generation with inlet vessel geometries for CFD simulations. 
 
-You can use `predict.py` with the following arguments to generate predictions. 
+The config files for both tasks are stored in `config`. The first task uses a template mesh without pulmonary veins and vena cava geometries and the second task uses another template mesh with those structures so that the predictions can be used for CHD simulations. Please make sure to use the correct template mesh depending on the task. The template mesh can be generated from the previous steps using the corresponding segmentation files. After changing the pathnames in the config files, you can use `predict.py` with the following arguments to generate predictions. 
 ```
-python predict.py \
-    --image /path/to/image/dir \
-    --mesh_dat /path/to/the/training/data/file  \
-    --swap_dat /path/to/the/biharmonic/weights/for/current/template # This is an optional the `<date>_bbw.dat` file generated from running `create_template.sh` on the training template. \
-    --attr _test  \
-    --mesh_tmplt  /path/to/polygon/mesh/template \
-    --output /path/to/output/dir \
-    --model /path/to/the/pretrained/model \
-    --modality ct \
-    --seg_id 1 2 3 4 5 6 7 \
-    --mode test \
-    --num_mesh 7 \
-    --num_seg 1 \
-    --num_block 3
+python predict.py --config config/task2_wh.yaml
 ```
 
-Note:
+Some notes about the config options:
 - `--image`: the images should be stored under with in `<image>/ct<attr>`, thus for `--attr _test`, and `--modality ct` the image volumes should be in `image_dir_name/ct_test`. You can use `--modality ct mr' to predict both on CT and MR images where CT images are stored in `image_dir_name/ct_test` and MR images are stored in `image_dir_name/mr_test`.
 - `--mesh_dat` is the `<date>_bbw.dat` file generated from running `create_template.sh` on the training template.
 - `--swap_dat`is optional for providing the biharmonic coordinates corresponding to a modified template (e.g. the CFD-suitable template created from the training template). (TO-DO provide instructions on interpolating biharmonic coordinates to a modified template)
@@ -64,20 +55,7 @@ Note:
 
 ## Training
 
-To train our network model, please run the following command. More details will be added soon.
+To train our network model, please run the following command.
 ```
-python train.py \
-    --im_trains /path/to/training/images \
-    --im_vals /path/to/validation/images \
-    --mesh /filename/of/the/training/dat/file  \
-    --output /path/to/output/dir \
-    --modality ct mr \
-    --num_epoch 300 \
-    --lr 0.001 \
-    --size 128 128 128 \
-    --mesh_ids 0 1 2 3 4 5 6 \
-    --num_seg 1 \
-    --num_block $num_block\
-    --geom_weights 0.3 0.46 25 \
-    --if_mask 
+python train.py --config config/task2_wh.yaml
  ```
