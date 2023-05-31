@@ -28,6 +28,7 @@ from vtk.util.numpy_support import vtk_to_numpy, numpy_to_vtk
 from vtk_utils.vtk_utils import *
 from pre_process import *
 import trimesh
+import yaml
 
 def chebyshev_polynomials(adj, k):
     """Calculate Chebyshev polynomials up to order k. Return a list of sparse matrices (tuple representation)."""
@@ -198,7 +199,25 @@ def get_face_node_list(mesh, output_mesh=False, target_num=None, cap_list=None):
     else:
         return mesh_info 
 
-def make_dat_bc(mesh_fn, sample_fn, weight_fns, ctrl_fns, write=True, output_path=None, num_mesh=7):
+def get_center_ids(mesh, coords_fn, num_mesh):
+    if coords_fn is None:
+        return [[-1]]*num_mesh
+    else:
+        id_list = []
+        with open(coords_fn, 'r') as f:
+            params = yaml.safe_load(f)
+            for k in params.keys():
+                if params[k] is None:
+                    id_list.append([-1])
+                else:
+                    mesh_k = thresholdPolyData(mesh, 'RegionId', (k, k),'point')
+                    locator = vtk.vtkKdTreePointLocator()
+                    locator.SetDataSet(mesh_k) 
+                    locator.BuildLocator()
+                    id_list.append([locator.FindClosestPoint(pt) for pt in params[k]])
+        return id_list
+
+def make_dat_bc(mesh_fn, sample_fn, weight_fns, ctrl_fns, write=True, output_path=None, num_mesh=7, coords_fn=None):
     template = load_vtk_mesh(mesh_fn)
     sample_mesh = load_vtk_mesh(sample_fn)
     ctrl_pts = [load_vtk_mesh(ctrl_fn) for ctrl_fn in ctrl_fns]
@@ -207,8 +226,8 @@ def make_dat_bc(mesh_fn, sample_fn, weight_fns, ctrl_fns, write=True, output_pat
     # Break template mesh into different cardiac structures
     NUM_MESH = num_mesh
     # cap dict
-    cap_list = [[-1], [964,1801,1893,3103], [-1], [59, 3220], [-1], [3008], [-1]]
-    cap_list = [[-1],[-1],[-1],[-1],[-1],[-1],[-1]]
+    cap_list = get_center_ids(template, coords_fn, num_mesh)
+    print("DEBUG: ", cap_list)
     tmplt_mesh_info, template = get_face_node_list(template, cap_list=cap_list, output_mesh=True)
     sample_mesh_info = get_face_node_list(sample_mesh)
     coords = vtk_to_numpy(template.GetPoints().GetData())
@@ -269,10 +288,11 @@ def parse():
     parser.add_argument('--ctrl_fns', nargs='+', default=[], help='Name of the control points')
     parser.add_argument('--weight_fns', nargs='+', default=[], help='Name of the control points')
     parser.add_argument('--out_dir', help='Path to the output folder')
+    parser.add_argument('--center_coords_fn', default=None, help='Filename where coordinates of the center points of vessels were stored for assigning regularization losses')
     parser.add_argument('--num_mesh', type=int, help='Number of mesh components')
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = parse()
-    make_dat_bc(args.tmplt_fn, args.sample_fn, args.weight_fns, args.ctrl_fns, write=True, output_path=args.out_dir, num_mesh=args.num_mesh)
+    make_dat_bc(args.tmplt_fn, args.sample_fn, args.weight_fns, args.ctrl_fns, write=True, output_path=args.out_dir, num_mesh=args.num_mesh, coords_fn=args.center_coords_fn)
 

@@ -1,0 +1,57 @@
+network:
+  num_blocks: 3
+  num_seg_class: 1
+  rescale_factor: 0.1
+  input_size:
+    - 128
+    - 128
+    - 128
+  hidden_dim: 128
+  coord_emb_dim: 384
+prediction:
+  model_weights_filename: pretrained/task1_mmwhs.hdf5
+  image:
+    image_folder: examples/images
+    image_folder_attr: _test
+    modality:
+      - ct
+  mesh:
+    mesh_dat_filemame: examples/09_13_2022_22_29_27_bbw.dat
+    mesh_tmplt_filename: examples/09_13_2022_22_29_27_template.vtp
+    swap_bc_coordinates: null
+    num_mesh: 7
+  output_folder: output/task1
+  mode: test
+train:
+    batch_size: 1
+    lr: 0.0005
+    num_epoch: 300
+    pre_train: pretrained/task1_mmwhs.hdf5
+    pre_train_unet: null
+    mesh_dat_filemame: examples/09_13_2022_22_29_27_bbw.dat
+    data:
+        train_img_folder:
+            - /path/to/to/original/image/dir
+            - /path/to/to/augmented/image/dir
+        val_img_folder: 
+            - /path/to/to/original/image/dir
+        file_pattern: '*.tfrecords'
+        train_sub_folder_attr: ['', '']
+        val_sub_folder_attr: ['']
+        train_sub_folder_weights: [1., 1.]
+        val_sub_folder_weights: [1.] 
+        mesh_ids: [0, 1, 2, 3, 4, 5, 6] 
+        modality: 
+            - ct
+            - mr
+        seed: 41
+    loss:
+        seg_wt: 100
+        geom_wt: [0.3, 0.46, 25.]
+        mesh_wt: [0.5, 0.5, 0.5]
+        chamfer_ratio: 1.
+        if_mask: True
+        if_cap: False
+        turn_off_l2: False
+    output_folder: output/task1/test
+
