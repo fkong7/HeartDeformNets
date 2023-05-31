@@ -6,3 +6,5 @@ scipy==1.4.1
 SimpleITK==1.2.0
 tensorflow==1.15.5
 vtk==9.1.0
+trimesh==3.6.16
+PyYAML==5.3.1
