@@ -1,8 +1,6 @@
 # HeartDeformNets
 
-This repository contains the source code of our paper:
-
-Fanwei Kong, Shawn Shadden, Learning Whole Heart Mesh Generation From Patient Images For Computational Simulations (2022)
+This package provides a deep learning framework to predict deformation of whole heart mesh templates from volumetric patient image data by leveraging a graph convolutional network to predict the translations of a small set of control handles to smoothly deform a whole heart template using biharmonic coordinates. Further details of the underlying network architecture are described in this [paper](https://doi.org/10.1109/TMI.2022.3219284).
 
 <img width="1961" alt="network2" src="https://user-images.githubusercontent.com/31931939/184846001-eb3b9442-ae46-4152-a3dc-791e1ccdf946.png">
 
